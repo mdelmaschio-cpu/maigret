@@ -6,6 +6,7 @@ import random
 import re
 import ssl
 import sys
+import time
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
@@ -340,7 +341,12 @@ def debug_response_logging(url, html_text, status_code, check_error):
 
 
 def process_site_result(
-    response, query_notify, logger, results_info: QueryResultWrapper, site: MaigretSite
+    response,
+    query_notify,
+    logger,
+    results_info: QueryResultWrapper,
+    site: MaigretSite,
+    elapsed_time: Optional[float] = None,
 ):
     if not response:
         return results_info
@@ -372,8 +378,7 @@ def process_site_result(
 
     html_text, status_code, check_error = response
 
-    # TODO: add elapsed request time counting
-    response_time = None
+    response_time = elapsed_time
 
     if logger.level == logging.DEBUG:
         debug_response_logging(url, html_text, status_code, check_error)
@@ -679,6 +684,7 @@ async def check_site_for_username(
         print(f"error, no checker for {site.name}")
         return site.name, default_result
 
+    start_time = time.monotonic()
     response = await checker.check()
     html_text = response[0] if response and response[0] else ""
 
@@ -713,9 +719,10 @@ async def check_site_for_username(
                     payload=getattr(checker, 'payload', None),
                 )
                 response = await checker.check()
+    elapsed_time = time.monotonic() - start_time
 
     response_result = process_site_result(
-        response, query_notify, logger, default_result, site
+        response, query_notify, logger, default_result, site, elapsed_time
     )
 
     query_notify.update(response_result['status'], site.similar_search)
